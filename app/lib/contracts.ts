@@ -1,6 +1,12 @@
 import { ethers } from 'ethers';
 import { getContractAddress, getCurrentNetwork } from './config';
 
+// Contract addresses
+export const CONTRACT_ADDRESSES = {
+  COINCIRCLE: getContractAddress('COINCIRCLE'),
+  // Add other contract addresses as needed
+};
+
 // CoinCircle Contract ABI (extracted from the compiled contract)
 export const COINCIRCLE_ABI = [
   {
