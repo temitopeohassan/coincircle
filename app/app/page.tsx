@@ -199,7 +199,7 @@ function HomeContent() {
                 <Users className="h-8 w-8 text-primary" />
               </div>
               <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-slate-900 to-slate-600 dark:from-slate-100 dark:to-slate-400 bg-clip-text text-transparent">
-                Crypto Stokvel
+                CoinCircle
               </h1>
               <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
                 Join decentralized savings groups, contribute cryptocurrency, and receive automated payouts. 
@@ -263,7 +263,7 @@ function HomeContent() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
           <div>
-            <h1 className="text-3xl font-bold mb-2">Crypto Stokvel Dashboard</h1>
+            <h1 className="text-3xl font-bold mb-2">CoinCircle Dashboard</h1>
             <p className="text-muted-foreground">
               Welcome back! Manage your decentralized savings groups.
             </p>

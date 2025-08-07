@@ -1,6 +1,6 @@
 # Smart Contract Integration Guide
 
-This document explains how the Crypto Stokvel application integrates with the CoinCircle smart contract.
+This document explains how the CoinCircle application integrates with the CoinCircle smart contract.
 
 ## Overview
 
@@ -299,4 +299,4 @@ For technical support:
 
 ## License
 
-This integration is part of the Crypto Stokvel project and follows the same license terms as the main application. 
+This integration is part of the CoinCircle project and follows the same license terms as the main application. 

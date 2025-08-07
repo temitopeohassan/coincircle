@@ -1,4 +1,4 @@
-# Crypto Stokvel - Decentralized Savings Groups
+# CoinCircle - Decentralized Savings Groups
 
 A modern web application for managing decentralized savings groups (stokvels) using cryptocurrency. Built with Next.js, TypeScript, and Tailwind CSS.
 

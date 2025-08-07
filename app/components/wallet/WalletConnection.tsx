@@ -106,7 +106,7 @@ export function WalletConnection({
           </div>
           <h3 className="text-lg font-semibold mb-2">Connect Your Wallet</h3>
           <p className="text-sm text-muted-foreground mb-6">
-            Connect your wallet to start using Crypto Stokvel
+            Connect your wallet to start using CoinCircle
           </p>
         </div>
         <Button

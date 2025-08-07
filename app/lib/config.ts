@@ -25,7 +25,7 @@ export const CONFIG = {
   
   // Application settings
   APP: {
-    name: 'Crypto Stokvel',
+    name: 'CoinCircle',
     description: 'Decentralized savings groups powered by smart contracts on Celo',
     version: '1.0.0'
   },

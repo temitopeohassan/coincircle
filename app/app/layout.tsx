@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Crypto Stokvel - Decentralized Savings Groups",
+  title: "CoinCircle - Decentralized Savings Groups",
   description: "Join decentralized savings groups, contribute cryptocurrency, and receive automated payouts. Build wealth together with your community.",
 };
 
@@ -16,7 +18,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={inter.className}>{children}</body>
+      <body className={inter.className}>
+        <div className="flex flex-col min-h-screen">
+          <Navbar />
+          <main className="flex-1 pt-16">
+            {children}
+          </main>
+          <Footer />
+        </div>
+      </body>
     </html>
   );
 }
