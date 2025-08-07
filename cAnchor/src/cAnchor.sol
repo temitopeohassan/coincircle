@@ -58,7 +58,7 @@ contract CAnchor is
     IPriceOracle public priceOracle;
     ICeloToken public cUSD;
     ICeloToken public cEUR;
-    ICeloToken public CELO;
+    ICeloToken public celo;
     
     uint256 public totalCollateralValue;
     uint256 public lastRebalanceTime;
@@ -89,7 +89,7 @@ contract CAnchor is
         address _priceOracle,
         address _cUSD,
         address _cEUR,
-        address _CELO,
+        address _celo,
         address _admin
     ) public initializer {
         __ERC20_init("cAnchor", "cANCHOR");
@@ -110,7 +110,7 @@ contract CAnchor is
         priceOracle = IPriceOracle(_priceOracle);
         cUSD = ICeloToken(_cUSD);
         cEUR = ICeloToken(_cEUR);
-        CELO = ICeloToken(_CELO);
+        celo = ICeloToken(_celo);
 
         // Initialize stability parameters
         stabilityFeeRate = STABILITY_FEE;
@@ -120,11 +120,11 @@ contract CAnchor is
         // Set up initial supported collaterals
         supportedCollaterals[_cUSD] = true;
         supportedCollaterals[_cEUR] = true;
-        supportedCollaterals[_CELO] = true;
+        supportedCollaterals[_celo] = true;
         
         collateralWeights[_cUSD] = 4000; // 40%
         collateralWeights[_cEUR] = 3000; // 30%
-        collateralWeights[_CELO] = 3000; // 30%
+        collateralWeights[_celo] = 3000; // 30%
     }
 
     /**

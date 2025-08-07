@@ -9,13 +9,13 @@ import "../src/SimplePriceOracle.sol";
 
 contract DeployCAnchor is Script {
     // Celo Mainnet addresses
-    address constant CELO_MAINNET_cUSD = 0x765DE816845861e75A25fCA122bb6898B8B1282a;
-    address constant CELO_MAINNET_cEUR = 0xD8763CBa276a3738E6DE85b4b3bF5FDed6D6cA73;
+    address constant CELO_MAINNET_CUSD = 0x765DE816845861e75A25fCA122bb6898B8B1282a;
+    address constant CELO_MAINNET_CEUR = 0xD8763CBa276a3738E6DE85b4b3bF5FDed6D6cA73;
     address constant CELO_MAINNET_CELO = 0x471EcE3750Da237f93B8E339c536989b8978a438;
     
     // Celo Alfajores (testnet) addresses
-    address constant CELO_TESTNET_cUSD = 0x874069Fa1Eb16D44d622F2e0Ca25eeA172369bC1;
-    address constant CELO_TESTNET_cEUR = 0x10c892A6EC43a53E45D0B916B4b7D383B1b78C0F;
+    address constant CELO_TESTNET_CUSD = 0x874069Fa1Eb16D44d622F2e0Ca25eeA172369bC1;
+    address constant CELO_TESTNET_CEUR = 0x10c892A6EC43a53E45D0B916B4b7D383B1b78C0F;
     address constant CELO_TESTNET_CELO = 0xF194afDf50B03e69Bd7D057c1Aa9e10c9954E4C9;
 
     function run() external {
@@ -23,7 +23,7 @@ contract DeployCAnchor is Script {
         address deployer = vm.addr(deployerPrivateKey);
         
         console.log("Deploying contracts with account:", deployer);
-        console.log("Account balance:", deployer.balance);
+        console.log("Account balance:", vm.toString(deployer.balance));
         
         // Determine which network we're on
         bool isMainnet = block.chainid == 42220; // Celo mainnet
@@ -32,9 +32,9 @@ contract DeployCAnchor is Script {
         require(isMainnet || isTestnet, "Unsupported network");
         
         // Set addresses based on network
-        address cUSD = isMainnet ? CELO_MAINNET_cUSD : CELO_TESTNET_cUSD;
-        address cEUR = isMainnet ? CELO_MAINNET_cEUR : CELO_TESTNET_cEUR;
-        address CELO = isMainnet ? CELO_MAINNET_CELO : CELO_TESTNET_CELO;
+        address cUSD = isMainnet ? CELO_MAINNET_CUSD : CELO_TESTNET_CUSD;
+        address cEUR = isMainnet ? CELO_MAINNET_CEUR : CELO_TESTNET_CEUR;
+        address celo = isMainnet ? CELO_MAINNET_CELO : CELO_TESTNET_CELO;
         
         vm.startBroadcast(deployerPrivateKey);
         
@@ -54,7 +54,7 @@ contract DeployCAnchor is Script {
             address(priceOracle),
             cUSD,
             cEUR,
-            CELO,
+            celo,
             deployer
         );
         
@@ -73,8 +73,8 @@ contract DeployCAnchor is Script {
         console.log("Verifying deployment...");
         console.log("cAnchor name:", cAnchor.name());
         console.log("cAnchor symbol:", cAnchor.symbol());
-        console.log("cAnchor decimals:", cAnchor.decimals());
-        console.log("Total supply:", cAnchor.totalSupply());
+        console.log("cAnchor decimals:", vm.toString(cAnchor.decimals()));
+        console.log("Total supply:", vm.toString(cAnchor.totalSupply()));
         
         // 7. Set up initial oracle prices (if needed)
         console.log("Setting up initial oracle prices...");
@@ -84,7 +84,7 @@ contract DeployCAnchor is Script {
             // On testnet, we can set example prices
             priceOracle.updatePrice(cUSD, 1e18);      // $1.00
             priceOracle.updatePrice(cEUR, 108e16);    // $1.08
-            priceOracle.updatePrice(CELO, 65e16);     // $0.65
+            priceOracle.updatePrice(celo, 65e16);     // $0.65
             priceOracle.updatePrice(address(cAnchor), 1e18); // $1.00 target
         }
         
@@ -93,14 +93,14 @@ contract DeployCAnchor is Script {
         // 8. Log deployment summary
         console.log("\n=== DEPLOYMENT SUMMARY ===");
         console.log("Network:", isMainnet ? "Celo Mainnet" : "Celo Alfajores Testnet");
-        console.log("Chain ID:", block.chainid);
+        console.log("Chain ID:", vm.toString(block.chainid));
         console.log("Deployer:", deployer);
         console.log("SimplePriceOracle:", address(priceOracle));
         console.log("cAnchor Implementation:", address(implementation));
         console.log("cAnchor Proxy (main contract):", address(proxy));
         console.log("cUSD:", cUSD);
         console.log("cEUR:", cEUR);
-        console.log("CELO:", CELO);
+        console.log("CELO:", celo);
         
         // 9. Save deployment info to file
         string memory deploymentInfo = string(abi.encodePacked(
@@ -113,7 +113,7 @@ contract DeployCAnchor is Script {
             "- **cAnchor Proxy (Main Contract)**: ", vm.toString(address(proxy)), "\n",
             "- **cUSD**: ", vm.toString(cUSD), "\n",
             "- **cEUR**: ", vm.toString(cEUR), "\n",
-            "- **CELO**: ", vm.toString(CELO), "\n\n",
+            "- **CELO**: ", vm.toString(celo), "\n\n",
             "## Contract Verification\n\n",
             "To verify the contracts on Celoscan, use:\n\n",
             "```bash\n",
@@ -122,8 +122,10 @@ contract DeployCAnchor is Script {
             "```\n"
         ));
         
-        vm.writeFile("deployment-info.md", deploymentInfo);
-        console.log("\nDeployment info saved to deployment-info.md");
+        // Note: File writing is disabled in this environment
+        // vm.writeFile("deployment-info.md", deploymentInfo);
+        console.log("\nDeployment info would be saved to deployment-info.md");
+        console.log("Deployment info:", deploymentInfo);
     }
 }
 
