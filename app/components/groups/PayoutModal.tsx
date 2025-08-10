@@ -82,7 +82,7 @@ export function PayoutModal({ open, onOpenChange, group, onTriggerPayout }: Payo
               <div className="flex items-center gap-2">
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
                 <div>
-                  <p className="text-sm font-medium">{(parseFloat(group.contributionAmount) * group.members.length).toFixed(2)} CELO</p>
+                  <p className="text-sm font-medium">{(parseFloat(group.contributionAmount) * group.members.length).toFixed(2)} cAnchor</p>
                   <p className="text-xs text-muted-foreground">Available pool</p>
                 </div>
               </div>
@@ -124,7 +124,7 @@ export function PayoutModal({ open, onOpenChange, group, onTriggerPayout }: Payo
                     </p>
                     <p className="text-xs text-green-700 dark:text-green-300">
                       The pool has reached the payout date. You can now trigger the payout 
-                      to receive {(parseFloat(group.contributionAmount) * group.members.length).toFixed(2)} CELO.
+                      to receive {(parseFloat(group.contributionAmount) * group.members.length).toFixed(2)} cAnchor.
                     </p>
                   </div>
                 </div>
@@ -141,7 +141,7 @@ export function PayoutModal({ open, onOpenChange, group, onTriggerPayout }: Payo
                   </p>
                   <p className="text-xs text-blue-700 dark:text-blue-300">
                       The next payout is scheduled for {nextPayoutDate}. The pool currently 
-                                              has {(parseFloat(group.contributionAmount) * group.members.length).toFixed(2)} CELO available.
+                                              has {(parseFloat(group.contributionAmount) * group.members.length).toFixed(2)} cAnchor available.
                   </p>
                 </div>
                 </div>
@@ -170,7 +170,7 @@ export function PayoutModal({ open, onOpenChange, group, onTriggerPayout }: Payo
                   Processing...
                 </div>
               ) : (
-                                      `Claim ${(parseFloat(group.contributionAmount) * group.members.length).toFixed(2)} CELO`
+                                      `Claim ${(parseFloat(group.contributionAmount) * group.members.length).toFixed(2)} cAnchor`
               )}
             </Button>
             )}

@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { ethers } from 'ethers';
-import { CoinCircleContract, TokenContract, CONTRACT_ADDRESSES } from '@/lib/contracts';
+import { CoinCircleContract, TokenContract, CAnchorContract, CONTRACT_ADDRESSES, CANCHOR_ABI } from '@/lib/contracts';
 
 interface Web3ContextType {
   // Wallet state
@@ -14,10 +14,14 @@ interface Web3ContextType {
   // Contract instances
   coinCircleContract: CoinCircleContract | null;
   tokenContract: TokenContract | null;
+  cAnchorContract: CAnchorContract | null;
   
   // User state
   userBalance: string;
   tokenBalance: string;
+  cAnchorBalance: string;
+  cAnchorCollateralBalance: string;
+  cAnchorDebtBalance: string;
   
   // Connection functions
   connectWallet: () => Promise<void>;
@@ -34,6 +38,14 @@ interface Web3ContextType {
   // Token functions
   approveTokens: (spender: string, amount: string) => Promise<any>;
   getTokenBalance: () => Promise<string>;
+  
+  // cAnchor functions
+  mintCAnchor: (collateralToken: string, collateralAmount: string, mintAmount: string) => Promise<any>;
+  burnCAnchor: (amount: string) => Promise<any>;
+  transferCAnchor: (to: string, amount: string) => Promise<any>;
+  getCAnchorBalance: () => Promise<string>;
+  getCAnchorCollateralBalance: () => Promise<string>;
+  getCAnchorDebtBalance: () => Promise<string>;
   
   // Loading states
   isLoading: boolean;
@@ -61,8 +73,12 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children }) => {
   const [provider, setProvider] = useState<ethers.providers.Web3Provider | null>(null);
   const [coinCircleContract, setCoinCircleContract] = useState<CoinCircleContract | null>(null);
   const [tokenContract, setTokenContract] = useState<TokenContract | null>(null);
+  const [cAnchorContract, setCAnchorContract] = useState<CAnchorContract | null>(null);
   const [userBalance, setUserBalance] = useState('0');
   const [tokenBalance, setTokenBalance] = useState('0');
+  const [cAnchorBalance, setCAnchorBalance] = useState('0');
+  const [cAnchorCollateralBalance, setCAnchorCollateralBalance] = useState('0');
+  const [cAnchorDebtBalance, setCAnchorDebtBalance] = useState('0');
   const [isLoading, setIsLoading] = useState(false);
   const [isTransactionPending, setIsTransactionPending] = useState(false);
 
@@ -98,19 +114,22 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children }) => {
         const balance = await provider.getBalance(account);
         const balanceInEth = ethers.utils.formatEther(balance);
         
-        // Initialize contracts
-        const coinCircleContract = new CoinCircleContract(signer);
-        
+        // Set state
         setWalletAddress(account);
         setSigner(signer);
         setProvider(provider);
-        setCoinCircleContract(coinCircleContract);
         setUserBalance(balanceInEth);
         setIsConnected(true);
         
-        // Listen for account changes
-        window.ethereum.on('accountsChanged', handleAccountsChanged);
-        window.ethereum.on('chainChanged', handleChainChanged);
+        // Initialize contracts
+        await initializeContracts(signer);
+        await initializeCAnchorContract(signer);
+        
+        // Set up event listeners
+        if (window.ethereum.on) {
+          window.ethereum.on('accountsChanged', handleAccountsChanged);
+          window.ethereum.on('chainChanged', handleChainChanged);
+        }
       } else {
         throw new Error('MetaMask is not installed');
       }
@@ -130,8 +149,12 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children }) => {
     setProvider(null);
     setCoinCircleContract(null);
     setTokenContract(null);
+    setCAnchorContract(null);
     setUserBalance('0');
     setTokenBalance('0');
+    setCAnchorBalance('0');
+    setCAnchorCollateralBalance('0');
+    setCAnchorDebtBalance('0');
   };
 
   // Handle account changes
@@ -162,6 +185,51 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children }) => {
         const balance = await tokenContract.getBalance(walletAddress);
         setTokenBalance(balance);
       }
+    }
+  };
+
+  // Initialize contracts
+  const initializeContracts = async (signer: ethers.Signer) => {
+    try {
+      const coinCircle = new CoinCircleContract(signer);
+      setCoinCircleContract(coinCircle);
+    } catch (error) {
+      console.error('Error initializing CoinCircle contract:', error);
+    }
+  };
+
+  // Initialize cAnchor contract
+  const initializeCAnchorContract = async (signer: ethers.Signer) => {
+    try {
+      // Get the cAnchor contract address from config
+      const cAnchorAddress = '0x6d8b3e655519a31f80cc90bba06c0ad9a97baf69'; // From config
+      const cAnchorContractInstance = new ethers.Contract(cAnchorAddress, CANCHOR_ABI, signer);
+      const cAnchor = new CAnchorContract(cAnchorContractInstance, cAnchorAddress);
+      setCAnchorContract(cAnchor);
+      
+      // Get initial balances if wallet is connected
+      if (walletAddress) {
+        await updateCAnchorBalances(cAnchor, walletAddress);
+      }
+    } catch (error) {
+      console.error('Error initializing cAnchor contract:', error);
+    }
+  };
+
+  // Update cAnchor balances
+  const updateCAnchorBalances = async (contract: CAnchorContract, address: string) => {
+    try {
+      const [balance, collateralBalance, debtBalance] = await Promise.all([
+        contract.balanceOf(address),
+        contract.getUserCollateralBalance(address),
+        contract.getUserDebtBalance(address)
+      ]);
+      
+      setCAnchorBalance(balance);
+      setCAnchorCollateralBalance(collateralBalance.toString());
+      setCAnchorDebtBalance(debtBalance.toString());
+    } catch (error) {
+      console.error('Error updating cAnchor balances:', error);
     }
   };
 
@@ -267,6 +335,118 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children }) => {
     }
   };
 
+  // cAnchor functions
+  const mintCAnchor = async (collateralToken: string, collateralAmount: string, mintAmount: string) => {
+    if (!cAnchorContract || !walletAddress) {
+      throw new Error('Wallet not connected or cAnchor contract not initialized');
+    }
+    
+    try {
+      setIsTransactionPending(true);
+      const tx = await cAnchorContract.mint(collateralToken, collateralAmount, mintAmount);
+      await tx.wait();
+      
+      // Update balances
+      await updateCAnchorBalances(cAnchorContract, walletAddress);
+      
+      return tx;
+    } catch (error) {
+      console.error('Error minting cAnchor:', error);
+      throw error;
+    } finally {
+      setIsTransactionPending(false);
+    }
+  };
+
+  const burnCAnchor = async (amount: string) => {
+    if (!cAnchorContract || !walletAddress) {
+      throw new Error('Wallet not connected or cAnchor contract not initialized');
+    }
+    
+    try {
+      setIsTransactionPending(true);
+      const tx = await cAnchorContract.burn(amount);
+      await tx.wait();
+      
+      // Update balances
+      await updateCAnchorBalances(cAnchorContract, walletAddress);
+      
+      return tx;
+    } catch (error) {
+      console.error('Error burning cAnchor:', error);
+      throw error;
+    } finally {
+      setIsTransactionPending(false);
+    }
+  };
+
+  const transferCAnchor = async (to: string, amount: string) => {
+    if (!cAnchorContract || !walletAddress) {
+      throw new Error('Wallet not connected or cAnchor contract not initialized');
+    }
+    
+    try {
+      setIsTransactionPending(true);
+      const tx = await cAnchorContract.transfer(to, amount);
+      await tx.wait();
+      
+      // Update balances
+      await updateCAnchorBalances(cAnchorContract, walletAddress);
+      
+      return tx;
+    } catch (error) {
+      console.error('Error transferring cAnchor:', error);
+      throw error;
+    } finally {
+      setIsTransactionPending(false);
+    }
+  };
+
+  const getCAnchorBalance = async () => {
+    if (!cAnchorContract || !walletAddress) {
+      return '0';
+    }
+    
+    try {
+      const balance = await cAnchorContract.balanceOf(walletAddress);
+      setCAnchorBalance(balance);
+      return balance;
+    } catch (error) {
+      console.error('Error getting cAnchor balance:', error);
+      return '0';
+    }
+  };
+
+  const getCAnchorCollateralBalance = async () => {
+    if (!cAnchorContract || !walletAddress) {
+      return '0';
+    }
+    
+    try {
+      const balance = await cAnchorContract.getUserCollateralBalance(walletAddress);
+      setCAnchorCollateralBalance(balance.toString());
+      return balance.toString();
+    } catch (error) {
+      console.error('Error getting cAnchor collateral balance:', error);
+      return '0';
+    }
+  };
+
+  const getCAnchorDebtBalance = async () => {
+    if (!cAnchorContract || !walletAddress) {
+      return '0';
+    }
+    
+    try {
+      const balance = await cAnchorContract.getUserDebtBalance(walletAddress);
+      setCAnchorDebtBalance(balance.toString());
+      return balance.toString();
+    } catch (error) {
+      console.error('Error getting cAnchor debt balance:', error);
+      return '0';
+    }
+  };
+
   // Initialize on mount
   useEffect(() => {
     checkIfWalletIsConnected();
@@ -278,7 +458,13 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children }) => {
       const updateBalance = async () => {
         try {
           const balance = await provider.getBalance(walletAddress);
-          setUserBalance(ethers.utils.formatEther(balance));
+          const balanceInEth = ethers.utils.formatEther(balance);
+          setUserBalance(balanceInEth);
+          
+          // Update cAnchor balances if contract is available
+          if (cAnchorContract) {
+            await updateCAnchorBalances(cAnchorContract, walletAddress);
+          }
         } catch (error) {
           console.error('Error updating balance:', error);
         }
@@ -298,8 +484,12 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children }) => {
     provider,
     coinCircleContract,
     tokenContract,
+    cAnchorContract,
     userBalance,
     tokenBalance,
+    cAnchorBalance,
+    cAnchorCollateralBalance,
+    cAnchorDebtBalance,
     connectWallet,
     disconnectWallet,
     createGroup,
@@ -310,6 +500,12 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children }) => {
     getAllGroups,
     approveTokens,
     getTokenBalance,
+    mintCAnchor,
+    burnCAnchor,
+    transferCAnchor,
+    getCAnchorBalance,
+    getCAnchorCollateralBalance,
+    getCAnchorDebtBalance,
     isLoading,
     isTransactionPending,
   };

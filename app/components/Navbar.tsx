@@ -5,36 +5,39 @@ import Link from "next/link";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { WalletConnection } from "@/components/wallet/WalletConnection";
+import { useWeb3 } from "@/contexts/Web3Context";
 
-interface NavbarProps {
-  onConnect?: (address: string) => void;
-  onDisconnect?: () => void;
-  isConnected?: boolean;
-  address?: string;
-}
-
-const Navbar = ({ 
-  onConnect, 
-  onDisconnect, 
-  isConnected = false, 
-  address = '' 
-}: NavbarProps) => {
+const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  
+  // Use the Web3 context to get wallet state and functions
+  const {
+    isConnected,
+    walletAddress,
+    connectWallet,
+    disconnectWallet
+  } = useWeb3();
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
   };
 
-  const handleConnect = (address: string) => {
-    if (onConnect) {
-      onConnect(address);
+  const handleConnect = async () => {
+    try {
+      await connectWallet();
+    } catch (error) {
+      console.error('Failed to connect wallet:', error);
     }
   };
 
   const handleDisconnect = () => {
-    if (onDisconnect) {
-      onDisconnect();
-    }
+    disconnectWallet();
+  };
+
+  // Format wallet address for display
+  const formatAddress = (address: string) => {
+    if (!address) return '';
+    return `${address.slice(0, 6)}...${address.slice(-4)}`;
   };
 
   return (
@@ -83,7 +86,7 @@ const Navbar = ({
               onConnect={handleConnect}
               onDisconnect={handleDisconnect}
               isConnected={isConnected}
-              address={address}
+              address={walletAddress || ''}
             />
           </div>
 
@@ -151,7 +154,7 @@ const Navbar = ({
                   onConnect={handleConnect}
                   onDisconnect={handleDisconnect}
                   isConnected={isConnected}
-                  address={address}
+                  address={walletAddress || ''}
                 />
               </div>
             </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -13,7 +13,8 @@ import { PayoutModal } from '@/components/groups/PayoutModal';
 import { GroupCard } from '@/components/groups/GroupCard';
 import { DashboardStats } from '@/components/dashboard/DashboardStats';
 import { ActivityFeed } from '@/components/dashboard/ActivityFeed';
-import { Plus, Users, TrendingUp, DollarSign, Activity, AlertCircle } from 'lucide-react';
+import CAnchorDashboard from '@/components/CAnchorDashboard';
+import { Plus, Users, TrendingUp, DollarSign, Activity, AlertCircle, Coins } from 'lucide-react';
 import { Web3Provider, useWeb3 } from '@/contexts/Web3Context';
 
 interface Group {
@@ -66,16 +67,16 @@ function HomeContent() {
   const [myGroups, setMyGroups] = useState<Group[]>([]);
   const [availableGroups, setAvailableGroups] = useState<Group[]>([]);
   const [isLoadingGroups, setIsLoadingGroups] = useState(false);
-
-  const [userStats] = useState<UserStats>({
-    totalContributed: 12.5,
-    totalReceived: 8.2,
-    activeGroups: 3,
-    pendingPayouts: 1
+  const [userStats, setUserStats] = useState<UserStats>({
+    totalContributed: 0,
+    totalReceived: 0,
+    activeGroups: 0,
+    pendingPayouts: 0
   });
+  const [isLoadingStats, setIsLoadingStats] = useState(false);
 
   // Load groups from smart contract
-  const loadGroups = async () => {
+  const loadGroups = useCallback(async () => {
     if (!isConnected) return;
     
     setIsLoadingGroups(true);
@@ -94,22 +95,22 @@ function HomeContent() {
         group.members.length < group.groupSize
       );
 
-      // Add mock data for display purposes (in real app, this would come from IPFS or similar)
-                        const groupsWithMetadata = userGroups.map((group: Group) => ({
-                    ...group,
-                    name: `Stokvel Group ${group.id}`,
-                    description: `A decentralized savings group with ${group.groupSize} members`,
-                    nextPayout: new Date(Date.now() + group.roundDuration * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-                    currency: 'CELO'
-                  }));
+      // Add dynamic metadata based on blockchain data
+      const groupsWithMetadata = userGroups.map((group: Group) => ({
+        ...group,
+        name: `Stokvel Group ${group.id}`,
+        description: `A decentralized savings group with ${group.groupSize} members`,
+        nextPayout: new Date(Date.now() + group.roundDuration * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        currency: 'cAnchor'
+      }));
 
-                        const availableGroupsWithMetadata = otherGroups.map((group: Group) => ({
-                    ...group,
-                    name: `Available Group ${group.id}`,
-                    description: `Join this group with ${group.groupSize} members`,
-                    nextPayout: new Date(Date.now() + group.roundDuration * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-                    currency: 'CELO'
-                  }));
+      const availableGroupsWithMetadata = otherGroups.map((group: Group) => ({
+        ...group,
+        name: `Available Group ${group.id}`,
+        description: `Join this group with ${group.groupSize} members`,
+        nextPayout: new Date(Date.now() + group.roundDuration * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        currency: 'cAnchor'
+      }));
 
       setMyGroups(groupsWithMetadata);
       setAvailableGroups(availableGroupsWithMetadata);
@@ -118,7 +119,41 @@ function HomeContent() {
     } finally {
       setIsLoadingGroups(false);
     }
-  };
+  }, [isConnected, walletAddress, getAllGroups]);
+
+  // Load user statistics from blockchain
+  const loadUserStats = useCallback(async () => {
+    if (!isConnected || !walletAddress) return;
+    
+    setIsLoadingStats(true);
+    try {
+      // For now, we'll calculate basic stats from groups
+      // In the future, this should come from the blockchain data service
+      const totalContributed = myGroups.reduce((sum, group) => {
+        return sum + (parseFloat(group.contributionAmount) * group.members.length);
+      }, 0);
+      
+      const totalReceived = myGroups.reduce((sum, group) => {
+        return sum + (parseFloat(group.contributionAmount) * group.members.length);
+      }, 0);
+      
+      const activeGroups = myGroups.filter(group => !group.completed).length;
+      const pendingPayouts = myGroups.filter(group => 
+        group.started && !group.completed && group.currentRound > 0
+      ).length;
+
+      setUserStats({
+        totalContributed,
+        totalReceived,
+        activeGroups,
+        pendingPayouts
+      });
+    } catch (error) {
+      console.error('Error loading user stats:', error);
+    } finally {
+      setIsLoadingStats(false);
+    }
+  }, [isConnected, walletAddress, myGroups]);
 
   // Load groups when wallet connects
   useEffect(() => {
@@ -126,6 +161,13 @@ function HomeContent() {
       loadGroups();
     }
   }, [isConnected, walletAddress]);
+
+  // Load user stats when groups change
+  useEffect(() => {
+    if (isConnected && myGroups.length > 0) {
+      loadUserStats();
+    }
+  }, [isConnected, myGroups]);
 
   const handleWalletConnect = async () => {
     try {
@@ -148,7 +190,7 @@ function HomeContent() {
         groupData.tokenAddress || '0x0000000000000000000000000000000000000000', // Default ETH
         groupData.payoutType || 'rotation'
       );
-    setShowCreateModal(false);
+      setShowCreateModal(false);
       // Reload groups after creation
       setTimeout(loadGroups, 2000);
     } catch (error) {
@@ -159,7 +201,7 @@ function HomeContent() {
   const handleJoinGroup = async (groupId: number) => {
     try {
       await joinGroup(groupId);
-    setShowJoinModal(false);
+      setShowJoinModal(false);
       // Reload groups after joining
       setTimeout(loadGroups, 2000);
     } catch (error) {
@@ -181,7 +223,7 @@ function HomeContent() {
   const handlePayout = async (groupId: number) => {
     try {
       await triggerPayout(groupId);
-    setShowPayoutModal(false);
+      setShowPayoutModal(false);
       // Reload groups after payout
       setTimeout(loadGroups, 2000);
     } catch (error) {
@@ -239,18 +281,15 @@ function HomeContent() {
                   </div>
                   <h3 className="font-semibold mb-2">Automated Payouts</h3>
                   <p className="text-sm text-muted-foreground">
-                    Receive fair payouts based on smart contract rules
+                    Receive payouts automatically when conditions are met
                   </p>
                 </CardContent>
               </Card>
             </div>
 
-            <WalletConnection 
-              onConnect={handleWalletConnect}
-              onDisconnect={handleWalletDisconnect}
-              isConnected={isConnected}
-              address={walletAddress || ''}
-            />
+            <Button onClick={handleWalletConnect} size="lg" className="px-8">
+              Connect Wallet to Get Started
+            </Button>
           </div>
         </div>
       </div>
@@ -261,197 +300,225 @@ function HomeContent() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+        <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold mb-2">CoinCircle Dashboard</h1>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-600 dark:from-slate-100 dark:to-slate-400 bg-clip-text text-transparent">
+              Welcome back!
+            </h1>
             <p className="text-muted-foreground">
-              Welcome back! Manage your decentralized savings groups.
+              Manage your decentralized savings groups and cAnchor stablecoin
             </p>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="text-right">
-              <p className="text-sm text-muted-foreground">Wallet Balance</p>
-              <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                {parseFloat(userBalance).toFixed(4)} ETH
-              </p>
-            </div>
-            <WalletConnection 
-              onConnect={handleWalletConnect} 
-              onDisconnect={handleWalletDisconnect}
-              isConnected={isConnected}
-              address={walletAddress || ''}
-            />
-          </div>
+          
         </div>
 
-        {/* Transaction Status */}
-        {isTransactionPending && (
-          <Card className="mb-6 border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-4 h-4 border-2 border-amber-600 border-t-transparent rounded-full animate-spin"></div>
-                <span className="text-amber-800 dark:text-amber-200 font-medium">
-                  Transaction in progress...
-                </span>
+        {/* Dashboard Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Contributed</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {isLoadingStats ? '...' : `${userStats.totalContributed.toFixed(2)} cAnchor`}
               </div>
+              <p className="text-xs text-muted-foreground">
+                Across all groups
+              </p>
             </CardContent>
           </Card>
-        )}
 
-        {/* Stats Dashboard */}
-        <DashboardStats stats={userStats} />
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Received</CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {isLoadingStats ? '...' : `${userStats.totalReceived.toFixed(2)} cAnchor`}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                From payouts
+              </p>
+            </CardContent>
+          </Card>
 
-        {/* Main Content */}
-        <div className="grid lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2">
-            <Tabs defaultValue="my-groups" className="space-y-6">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="my-groups">My Groups</TabsTrigger>
-                <TabsTrigger value="discover">Discover Groups</TabsTrigger>
-              </TabsList>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Active Groups</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {isLoadingStats ? '...' : userStats.activeGroups}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Currently participating
+              </p>
+            </CardContent>
+          </Card>
 
-              <TabsContent value="my-groups" className="space-y-6">
-                <div className="flex justify-between items-center">
-                  <h2 className="text-xl font-semibold">My Stokvel Groups</h2>
-                  <Button 
-                    onClick={() => setShowCreateModal(true)} 
-                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-                    disabled={isTransactionPending}
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create Group
-                  </Button>
-                </div>
-
-                {isLoadingGroups ? (
-                  <div className="flex items-center justify-center py-12">
-                    <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-                  </div>
-                ) : myGroups.length > 0 ? (
-                <div className="grid gap-4">
-                  {myGroups.map((group) => (
-                    <GroupCard
-                      key={group.id}
-                      group={group}
-                      onContribute={() => {
-                        setSelectedGroup(group);
-                        setShowContributeModal(true);
-                      }}
-                      onViewDetails={() => {}}
-                      onTriggerPayout={() => {
-                        setSelectedGroup(group);
-                        setShowPayoutModal(true);
-                      }}
-                    />
-                  ))}
-                </div>
-                ) : (
-                  <Card className="border-0 shadow-lg bg-white/50 dark:bg-slate-800/50 backdrop-blur">
-                    <CardContent className="p-8 text-center">
-                      <div className="inline-flex items-center justify-center w-12 h-12 bg-muted rounded-full mb-4">
-                        <Users className="h-6 w-6 text-muted-foreground" />
-                      </div>
-                      <h3 className="text-lg font-semibold mb-2">No Groups Yet</h3>
-                      <p className="text-muted-foreground mb-4">
-                        You haven&apos;t joined any stokvel groups yet. Create your own or join an existing one.
-                      </p>
-                      <Button 
-                        onClick={() => setShowCreateModal(true)}
-                        className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-                      >
-                        Create Your First Group
-                      </Button>
-                    </CardContent>
-                  </Card>
-                )}
-              </TabsContent>
-
-              <TabsContent value="discover" className="space-y-6">
-                <div className="flex justify-between items-center">
-                  <h2 className="text-xl font-semibold">Available Groups</h2>
-                  <Badge variant="secondary" className="px-3 py-1">
-                    {availableGroups.length} groups available
-                  </Badge>
-                </div>
-
-                {isLoadingGroups ? (
-                  <div className="flex items-center justify-center py-12">
-                    <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-                  </div>
-                ) : availableGroups.length > 0 ? (
-                <div className="grid gap-4">
-                  {availableGroups.map((group) => (
-                    <GroupCard
-                      key={group.id}
-                      group={group}
-                      onJoin={() => {
-                        setSelectedGroup(group);
-                        setShowJoinModal(true);
-                      }}
-                      onViewDetails={() => {}}
-                      showJoinButton={true}
-                    />
-                  ))}
-                </div>
-                ) : (
-                  <Card className="border-0 shadow-lg bg-white/50 dark:bg-slate-800/50 backdrop-blur">
-                    <CardContent className="p-8 text-center">
-                      <div className="inline-flex items-center justify-center w-12 h-12 bg-muted rounded-full mb-4">
-                        <AlertCircle className="h-6 w-6 text-muted-foreground" />
-                      </div>
-                      <h3 className="text-lg font-semibold mb-2">No Available Groups</h3>
-                      <p className="text-muted-foreground">
-                        All groups are currently full or have already started. Create your own group to get started.
-                      </p>
-                    </CardContent>
-                  </Card>
-                )}
-              </TabsContent>
-            </Tabs>
-          </div>
-
-          <div className="space-y-6">
-            <ActivityFeed />
-          </div>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Pending Payouts</CardTitle>
+              <AlertCircle className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {isLoadingStats ? '...' : userStats.pendingPayouts}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Awaiting distribution
+              </p>
+            </CardContent>
+          </Card>
         </div>
+
+        {/* Main Content Tabs */}
+        <Tabs defaultValue="my-groups" className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="my-groups">My Groups</TabsTrigger>
+            <TabsTrigger value="discover">Discover Groups</TabsTrigger>
+            <TabsTrigger value="canchor">cAnchor</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="my-groups" className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold">My Groups</h2>
+              <Button onClick={() => setShowCreateModal(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Create Group
+              </Button>
+            </div>
+
+            {isLoadingGroups ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                <p className="text-muted-foreground">Loading your groups...</p>
+              </div>
+            ) : myGroups.length === 0 ? (
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-center text-muted-foreground">
+                    <Users className="mx-auto h-12 w-12 mb-4" />
+                    <p>You haven&apos;t joined any groups yet.</p>
+                    <Button 
+                      onClick={() => setShowCreateModal(true)} 
+                      className="mt-4"
+                    >
+                      Create Your First Group
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid gap-6">
+                {myGroups.map((group) => (
+                  <GroupCard
+                    key={group.id}
+                    group={group}
+                    onJoin={() => setSelectedGroup(group)}
+                    onContribute={() => {
+                      setSelectedGroup(group);
+                      setShowContributeModal(true);
+                    }}
+                    onTriggerPayout={() => {
+                      setSelectedGroup(group);
+                      setShowPayoutModal(true);
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="discover" className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold">Discover Groups</h2>
+            </div>
+
+            {isLoadingGroups ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                <p className="text-muted-foreground">Loading available groups...</p>
+              </div>
+            ) : availableGroups.length === 0 ? (
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-center text-muted-foreground">
+                    <Users className="mx-auto h-12 w-12 mb-4" />
+                    <p>No groups available to join at the moment.</p>
+                    <Button 
+                      onClick={() => setShowCreateModal(true)} 
+                      className="mt-4"
+                    >
+                      Create a New Group
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid gap-6">
+                {availableGroups.map((group) => (
+                  <GroupCard
+                    key={group.id}
+                    group={group}
+                    onJoin={() => {
+                      setSelectedGroup(group);
+                      setShowJoinModal(true);
+                    }}
+                    onContribute={() => {}}
+                    onTriggerPayout={() => {}}
+                    showJoinButton={true}
+                  />
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="canchor" className="space-y-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Coins className="h-6 w-6 text-blue-600" />
+              <h2 className="text-xl font-semibold">cAnchor Stablecoin</h2>
+            </div>
+            <CAnchorDashboard />
+          </TabsContent>
+        </Tabs>
+
+        {/* Modals */}
+        <CreateGroupModal
+          open={showCreateModal}
+          onOpenChange={setShowCreateModal}
+          onCreateGroup={handleCreateGroup}
+        />
+
+        <JoinGroupModal
+          open={showJoinModal}
+          onOpenChange={setShowJoinModal}
+          onJoinGroup={() => selectedGroup && handleJoinGroup(selectedGroup.id)}
+          group={selectedGroup}
+        />
+
+        <ContributeModal
+          open={showContributeModal}
+          onOpenChange={setShowContributeModal}
+          onContribute={() => selectedGroup && handleContribute(selectedGroup.id)}
+          group={selectedGroup}
+          userBalance={typeof userBalance === 'number' ? userBalance : 0}
+        />
+
+        <PayoutModal
+          open={showPayoutModal}
+          onOpenChange={setShowPayoutModal}
+          onTriggerPayout={() => selectedGroup && handlePayout(selectedGroup.id)}
+          group={selectedGroup}
+        />
       </div>
-
-      {/* Modals */}
-      <CreateGroupModal
-        open={showCreateModal}
-        onOpenChange={setShowCreateModal}
-        onCreateGroup={handleCreateGroup}
-      />
-
-      <JoinGroupModal
-        open={showJoinModal}
-        onOpenChange={setShowJoinModal}
-        group={selectedGroup}
-        onJoinGroup={() => selectedGroup && handleJoinGroup(selectedGroup.id)}
-      />
-
-      <ContributeModal
-        open={showContributeModal}
-        onOpenChange={setShowContributeModal}
-        group={selectedGroup}
-        userBalance={parseFloat(userBalance)}
-        onContribute={() => selectedGroup && handleContribute(selectedGroup.id)}
-      />
-
-      <PayoutModal
-        open={showPayoutModal}
-        onOpenChange={setShowPayoutModal}
-        group={selectedGroup}
-        onTriggerPayout={() => selectedGroup && handlePayout(selectedGroup.id)}
-      />
     </div>
   );
 }
 
 export default function Home() {
-  return (
-    <Web3Provider>
-      <HomeContent />
-    </Web3Provider>
-  );
+  return <HomeContent />;
 }

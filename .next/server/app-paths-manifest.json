@@ -1,0 +1,9 @@
+{
+  "/_not-found/page": "app/_not-found/page.js",
+  "/node_modules/color-convert/route": "app/node_modules/color-convert/route.js",
+  "/node_modules/lucide-react/dist/esm/icons/route": "app/node_modules/lucide-react/dist/esm/icons/route.js",
+  "/.next/server/app/page": "app/.next/server/app/page.js",
+  "/app/page": "app/app/page.js",
+  "/.next/types/app/page": "app/.next/types/app/page.js",
+  "/.next/static/chunks/app/page": "app/.next/static/chunks/app/page.js"
+}

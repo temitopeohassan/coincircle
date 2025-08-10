@@ -461,6 +461,123 @@ export const ERC20_ABI = [
   }
 ];
 
+// cAnchor Contract ABI (extracted from the compiled contract)
+export const CANCHOR_ABI = [
+  // ERC20 functions
+  {
+    "inputs": [],
+    "name": "name",
+    "outputs": [{"internalType": "string", "name": "", "type": "string"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "symbol",
+    "outputs": [{"internalType": "string", "name": "", "type": "string"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "decimals",
+    "outputs": [{"internalType": "uint8", "name": "", "type": "uint8"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "totalSupply",
+    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "address", "name": "account", "type": "address"}],
+    "name": "balanceOf",
+    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {"internalType": "address", "name": "to", "type": "address"},
+      {"internalType": "uint256", "name": "amount", "type": "uint256"}
+    ],
+    "name": "transfer",
+    "outputs": [{"internalType": "bool", "name": "", "type": "bool"}],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {"internalType": "address", "name": "spender", "type": "address"},
+      {"internalType": "uint256", "name": "amount", "type": "uint256"}
+    ],
+    "name": "approve",
+    "outputs": [{"internalType": "bool", "name": "", "type": "bool"}],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {"internalType": "address", "name": "owner", "type": "address"},
+      {"internalType": "address", "name": "spender", "type": "address"}
+    ],
+    "name": "allowance",
+    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  // cAnchor specific functions
+  {
+    "inputs": [
+      {"internalType": "uint256", "name": "amount", "type": "uint256"}
+    ],
+    "name": "mint",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {"internalType": "uint256", "name": "amount", "type": "uint256"}
+    ],
+    "name": "burn",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "address", "name": "account", "type": "address"}],
+    "name": "collateralBalances",
+    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "address", "name": "account", "type": "address"}],
+    "name": "debtBalances",
+    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "totalCollateralValue",
+    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "priceOracle",
+    "outputs": [{"internalType": "address", "name": "", "type": "address"}],
+    "stateMutability": "view",
+    "type": "function"
+  }
+];
+
 // Contract interaction functions
 export class CoinCircleContract {
   private contract: ethers.Contract;
@@ -675,5 +792,106 @@ export class TokenContract {
       console.error('Error getting token info:', error);
       throw error;
     }
+  }
+} 
+
+export class CAnchorContract {
+  private contract: ethers.Contract;
+  private contractAddress: string;
+
+  constructor(contract: ethers.Contract, address: string) {
+    this.contract = contract;
+    this.contractAddress = address;
+  }
+
+  async mint(
+    collateralToken: string,
+    collateralAmount: string,
+    mintAmount: string
+  ): Promise<ethers.ContractTransaction> {
+    const collateralAmountWei = ethers.utils.parseEther(collateralAmount);
+    const mintAmountWei = ethers.utils.parseEther(mintAmount);
+    return await this.contract.mint(collateralToken, collateralAmountWei, mintAmountWei);
+  }
+
+  async burn(amount: string): Promise<ethers.ContractTransaction> {
+    const amountWei = ethers.utils.parseEther(amount);
+    return await this.contract.burn(amountWei);
+  }
+
+  async transfer(to: string, amount: string): Promise<ethers.ContractTransaction> {
+    const amountWei = ethers.utils.parseEther(amount);
+    return await this.contract.transfer(to, amountWei);
+  }
+
+  async balanceOf(address: string): Promise<string> {
+    const balance = await this.contract.balanceOf(address);
+    return ethers.utils.formatEther(balance);
+  }
+
+  async getUserCollateralBalance(user: string): Promise<ethers.BigNumber> {
+    return await this.contract.collateralBalances(user);
+  }
+
+  async getUserDebtBalance(user: string): Promise<ethers.BigNumber> {
+    return await this.contract.debtBalances(user);
+  }
+
+  async getSupportedCollaterals(): Promise<string[]> {
+    // This would need to be implemented in the smart contract
+    // For now, return the known supported tokens
+    return [
+      '0x874069Fa1Eb16D44d622F2e0Ca25eeA172369bC1', // cUSD
+      '0x10c892A6EC43a53E45D0B916B4b7D383B1b78C0F', // cEUR
+      '0xF194afDf50B03e69Bd7D057c1Aa9e10c9954E4C9'  // cAnchor
+    ];
+  }
+
+  async getPriceOracle(): Promise<string> {
+    return await this.contract.priceOracle();
+  }
+
+  async getTargetPrice(): Promise<ethers.BigNumber> {
+    return await this.contract.TARGET_PRICE();
+  }
+
+  async getMinCollateralRatio(): Promise<ethers.BigNumber> {
+    return await this.contract.MIN_COLLATERAL_RATIO();
+  }
+
+  async getLiquidationRatio(): Promise<ethers.BigNumber> {
+    return await this.contract.LIQUIDATION_RATIO();
+  }
+
+  async getStabilityFee(): Promise<ethers.BigNumber> {
+    return await this.contract.STABILITY_FEE();
+  }
+
+  async getTotalCollateralValue(): Promise<ethers.BigNumber> {
+    return await this.contract.totalCollateralValue();
+  }
+
+  async getTotalSupply(): Promise<ethers.BigNumber> {
+    return await this.contract.totalSupply();
+  }
+
+  getAddress(): string {
+    return this.contractAddress;
+  }
+
+  // Event query methods for external access
+  async queryMintEvents(walletAddress: string, fromBlock: number, toBlock: number) {
+    const mintFilter = this.contract.filters.Mint(walletAddress);
+    return await this.contract.queryFilter(mintFilter, fromBlock, toBlock);
+  }
+
+  async queryBurnEvents(walletAddress: string, fromBlock: number, toBlock: number) {
+    const burnFilter = this.contract.filters.Burn(walletAddress);
+    return await this.contract.queryFilter(burnFilter, fromBlock, toBlock);
+  }
+
+  async queryTransferEvents(walletAddress: string, fromBlock: number, toBlock: number) {
+    const transferFilter = this.contract.filters.Transfer(walletAddress);
+    return await this.contract.queryFilter(transferFilter, fromBlock, toBlock);
   }
 } 
